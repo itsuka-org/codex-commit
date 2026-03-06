@@ -1,10 +1,10 @@
 {
   "name": "codex-commit",
-  "displayName": "codex_commit",
+  "displayName": "Codex Commit",
   "publisher": "itsukaorg",
   "repository": "https://github.com/itsuka-org/codex-commit",
   "description": "Generate commit messages and branch names from your Git diff with Codex, right inside VS Code.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "engines": {
     "vscode": "^1.109.0"
