@@ -1,0 +1,191 @@
+{
+  "name": "codex-commit",
+  "displayName": "codex_commit",
+  "publisher": "your-publisher-id",
+  "repository": "https://github.com/itsuka-org/codex-commit",
+  "description": "Generate commit messages and branch names from your Git diff with Codex, right inside VS Code.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:codexCommit.generate",
+    "onCommand:codexCommit.generateBranchName",
+    "onCommand:codexCommit.regenerateBranchName",
+    "onCommand:codexCommit.createBranchFromGeneratedInput",
+    "onCommand:codexCommit.diagnostics"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codexCommit.generate",
+        "title": "Generate Commit Message (codex)",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codexCommit.generateBranchName",
+        "title": "Generate Branch Name (codex)",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "codexCommit.regenerateBranchName",
+        "title": "Regenerate Branch Name (codex)",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codexCommit.createBranchFromGeneratedInput",
+        "title": "Create Branch",
+        "icon": "$(check)"
+      },
+      {
+        "command": "codexCommit.diagnostics",
+        "title": "Codex Commit: Diagnostics"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "codexCommit.generate",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        },
+        {
+          "command": "codexCommit.generateBranchName",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        },
+        {
+          "command": "codexCommit.regenerateBranchName",
+          "when": "scmProvider == codexCommitBranchCreator",
+          "group": "navigation"
+        },
+        {
+          "command": "codexCommit.createBranchFromGeneratedInput",
+          "when": "scmProvider == codexCommitBranchCreator",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "codexCommit.createBranchFromGeneratedInput",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "scmProvider == codexCommitBranchCreator && scmRepository && inputFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Codex Commit",
+      "properties": {
+        "codexCommit.codexPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the codex CLI. Leave empty to use PATH resolution."
+        },
+        "codexCommit.promptTemplate": {
+          "type": "string",
+          "editPresentation": "multilineText",
+          "default": "You are a senior engineer.\nGenerate a git commit message based ONLY on the staged diff.\n\nOutput format:\n1) First line: Conventional Commits (feat|fix|refactor|docs|test|chore|perf|build|ci)(optional scope): subject (<= 72 chars)\n2) Blank line\n3) Bullet points (optional)\n\nStaged diff:\n{{diff}}",
+          "description": "Prompt template for Codex. Use {{diff}} to insert the staged diff."
+        },
+        "codexCommit.branchPromptTemplate": {
+          "type": "string",
+          "editPresentation": "multilineText",
+          "default": "You are a senior engineer.\nGenerate a concise git branch name based ONLY on the provided git diff.\n\nRules:\n- Output one branch name only, with no explanation.\n- Use lowercase.\n- Use kebab-case.\n- Prefer prefixes like feat/, fix/, chore/, docs/, refactor/, test/.\n\nDiff:\n{{diff}}",
+          "description": "Prompt template for branch names. Use {{diff}} to insert staged+unstaged diff."
+        },
+        "codexCommit.model": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "gpt-5.4",
+            "gpt-5.3-codex",
+            "gpt-5.3-codex-spark",
+            "gpt-5.2-codex",
+            "gpt-5.2",
+            "gpt-5.1-codex-max",
+            "gpt-5.1",
+            "gpt-5.1-codex",
+            "gpt-5.1-codex-mini",
+            "gpt-5-codex",
+            "gpt-5-codex-mini",
+            "gpt-5"
+          ],
+          "enumDescriptions": [
+            "Default (Codex CLI default; effort also uses codex CLI/model default)",
+            "Flagship frontier model for professional work with strong coding, reasoning, tool use, and agentic workflows. Effort: none, low, medium, high, xhigh.",
+            "Industry-leading coding model for complex software engineering. Its coding capabilities now also power GPT-5.4. Effort: low, medium, high, xhigh.",
+            "Text-only research preview model optimized for near-instant, real-time coding iteration.",
+            "Advanced coding model for real-world engineering. Succeeded by GPT-5.3-Codex. Effort: low, medium, high, xhigh.",
+            "Previous general-purpose model for coding and agentic tasks across industries and domains. Succeeded by GPT-5.4. Effort: none, low, medium, high, xhigh.",
+            "A version of GPT-5.1-Codex optimized for long-running tasks. Effort: none, medium, high, xhigh.",
+            "Great for coding and agentic tasks across domains. Succeeded by GPT-5.2. Effort: none, low, medium, high.",
+            "A version of GPT-5.1 optimized for agentic coding in Codex.",
+            "Smaller, more cost-effective, less-capable version of GPT-5.1-Codex.",
+            "A version of GPT-5 optimized for agentic coding in Codex.",
+            "Smaller, more cost-effective version of GPT-5-Codex. Succeeded by GPT-5.1-Codex-Mini.",
+            "Previous intelligent reasoning model for coding and agentic tasks across domains. Succeeded by GPT-5.1. Effort: minimal, low, medium, high."
+          ],
+          "description": "Model name passed to `codex exec --model`."
+        },
+        "codexCommit.effort": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "enumDescriptions": [
+            "Default (do not pass effort; use codex CLI/model default)",
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "description": "Reasoning effort passed via `codex exec -c model_reasoning_effort=...`. Empty keeps codex CLI default."
+        },
+        "codexCommit.debugLog": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write debug logs (spawned command, model argument, codex stdout/stderr, parsed assistant message) to the 'Codex Commit' output channel."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "25.x",
+    "@types/vscode": "^1.109.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^10.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "dependencies": {
+    "vsce": "^2.15.0"
+  }
+}
