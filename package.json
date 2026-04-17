@@ -4,7 +4,7 @@
   "publisher": "itsukaorg",
   "repository": "https://github.com/itsuka-org/codex-commit",
   "description": "Generate commit messages and branch names from your Git diff with Codex, right inside VS Code.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MIT",
   "engines": {
     "vscode": "^1.109.0"
@@ -105,6 +105,7 @@
           "enum": [
             "",
             "gpt-5.4",
+            "gpt-5.4-mini",
             "gpt-5.3-codex",
             "gpt-5.3-codex-spark",
             "gpt-5.2-codex",
@@ -114,23 +115,22 @@
             "gpt-5.1-codex",
             "gpt-5.1-codex-mini",
             "gpt-5-codex",
-            "gpt-5-codex-mini",
             "gpt-5"
           ],
           "enumDescriptions": [
             "Default (Codex CLI default; effort also uses codex CLI/model default)",
             "Flagship frontier model for professional work with strong coding, reasoning, tool use, and agentic workflows. Effort: none, low, medium, high, xhigh.",
+            "Fast, efficient mini model for responsive coding tasks and subagents.",
             "Industry-leading coding model for complex software engineering. Its coding capabilities now also power GPT-5.4. Effort: low, medium, high, xhigh.",
-            "Text-only research preview model optimized for near-instant, real-time coding iteration.",
-            "Advanced coding model for real-world engineering. Succeeded by GPT-5.3-Codex. Effort: low, medium, high, xhigh.",
+            "Text-only research preview model optimized for near-instant, real-time coding iteration. Available to ChatGPT Pro users.",
+            "[API Only] Advanced coding model for real-world engineering. Succeeded by GPT-5.3-Codex. Effort: low, medium, high, xhigh.",
             "Previous general-purpose model for coding and agentic tasks across industries and domains. Succeeded by GPT-5.4. Effort: none, low, medium, high, xhigh.",
-            "A version of GPT-5.1-Codex optimized for long-running tasks. Effort: none, medium, high, xhigh.",
-            "Great for coding and agentic tasks across domains. Succeeded by GPT-5.2. Effort: none, low, medium, high.",
-            "A version of GPT-5.1 optimized for agentic coding in Codex.",
-            "Smaller, more cost-effective, less-capable version of GPT-5.1-Codex.",
-            "A version of GPT-5 optimized for agentic coding in Codex.",
-            "Smaller, more cost-effective version of GPT-5-Codex. Succeeded by GPT-5.1-Codex-Mini.",
-            "Previous intelligent reasoning model for coding and agentic tasks across domains. Succeeded by GPT-5.1. Effort: minimal, low, medium, high."
+            "[API Only] A version of GPT-5.1-Codex optimized for long-running tasks. Effort: none, medium, high, xhigh.",
+            "[API Only] Great for coding and agentic tasks across domains. Succeeded by GPT-5.2. Effort: none, low, medium, high.",
+            "[API Only] A version of GPT-5.1 optimized for agentic coding in Codex.",
+            "[API Only] Smaller, more cost-effective, less-capable version of GPT-5.1-Codex.",
+            "[API Only] A version of GPT-5 optimized for agentic coding in Codex.",
+            "[API Only] Previous intelligent reasoning model for coding and agentic tasks across domains. Succeeded by GPT-5.1. Effort: minimal, low, medium, high."
           ],
           "description": "Model name passed to `codex exec --model`."
         },
