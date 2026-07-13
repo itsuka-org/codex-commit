@@ -105,33 +105,23 @@
           "default": "",
           "enum": [
             "",
+            "gpt-5.6-sol",
+            "gpt-5.6-terra",
+            "gpt-5.6-luna",
+            "gpt-5.5",
             "gpt-5.4",
             "gpt-5.4-mini",
-            "gpt-5.3-codex",
-            "gpt-5.3-codex-spark",
-            "gpt-5.2-codex",
-            "gpt-5.2",
-            "gpt-5.1-codex-max",
-            "gpt-5.1",
-            "gpt-5.1-codex",
-            "gpt-5.1-codex-mini",
-            "gpt-5-codex",
-            "gpt-5"
+            "gpt-5.3-codex-spark"
           ],
           "enumDescriptions": [
             "Default (Codex CLI default; effort also uses codex CLI/model default)",
-            "Flagship frontier model for professional work with strong coding, reasoning, tool use, and agentic workflows. Effort: none, low, medium, high, xhigh.",
-            "Fast, efficient mini model for responsive coding tasks and subagents.",
-            "Industry-leading coding model for complex software engineering. Its coding capabilities now also power GPT-5.4. Effort: low, medium, high, xhigh.",
-            "Text-only research preview model optimized for near-instant, real-time coding iteration. Available to ChatGPT Pro users.",
-            "[API Only] Advanced coding model for real-world engineering. Succeeded by GPT-5.3-Codex. Effort: low, medium, high, xhigh.",
-            "Previous general-purpose model for coding and agentic tasks across industries and domains. Succeeded by GPT-5.4. Effort: none, low, medium, high, xhigh.",
-            "[API Only] A version of GPT-5.1-Codex optimized for long-running tasks. Effort: none, medium, high, xhigh.",
-            "[API Only] Great for coding and agentic tasks across domains. Succeeded by GPT-5.2. Effort: none, low, medium, high.",
-            "[API Only] A version of GPT-5.1 optimized for agentic coding in Codex.",
-            "[API Only] Smaller, more cost-effective, less-capable version of GPT-5.1-Codex.",
-            "[API Only] A version of GPT-5 optimized for agentic coding in Codex.",
-            "[API Only] Previous intelligent reasoning model for coding and agentic tasks across domains. Succeeded by GPT-5.1. Effort: minimal, low, medium, high."
+            "Flagship GPT-5.6 model for complex coding, computer use, research, and cybersecurity. Effort: low, medium, high, xhigh, max, ultra.",
+            "Balanced GPT-5.6 model for everyday work. Effort: low, medium, high, xhigh, max, ultra.",
+            "Fast and affordable GPT-5.6 model for clear, repeatable work. Effort: low, medium, high, xhigh, max.",
+            "Previous-generation frontier model for complex coding, computer use, knowledge work, and research. Effort: low, medium, high, xhigh.",
+            "Strong model for everyday coding and agentic workflows. Effort: low, medium, high, xhigh.",
+            "Small, fast, and cost-efficient model for simpler coding tasks. Effort: low, medium, high, xhigh.",
+            "Text-only research preview for near-instant coding iteration. Available to ChatGPT Pro users. Effort: low, medium, high, xhigh."
           ],
           "description": "Model name passed to `codex exec --model`."
         },
@@ -140,21 +130,21 @@
           "default": "",
           "enum": [
             "",
-            "none",
-            "minimal",
             "low",
             "medium",
             "high",
-            "xhigh"
+            "xhigh",
+            "max",
+            "ultra"
           ],
           "enumDescriptions": [
             "Default (do not pass effort; use codex CLI/model default)",
-            "none",
-            "minimal",
-            "low",
-            "medium",
-            "high",
-            "xhigh"
+            "Low — fast responses with lighter reasoning (all listed models)",
+            "Medium — balanced speed and reasoning depth (all listed models)",
+            "High — greater reasoning depth (all listed models)",
+            "Extra high — for difficult, multi-step work (all listed models)",
+            "Maximum reasoning depth (GPT-5.6 Sol, Terra, and Luna only)",
+            "Maximum reasoning with automatic task delegation (GPT-5.6 Sol and Terra only)"
           ],
           "description": "Reasoning effort passed via `codex exec -c model_reasoning_effort=...`. Empty keeps codex CLI default."
         },

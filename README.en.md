@@ -70,8 +70,19 @@ You can run `Codex Commit: Diagnostics` from the command palette to view diagnos
   Model name passed to `codex exec --model` (selectable from the settings UI). If unset, the default behavior of the `codex` CLI is used.
   Each model description in Settings also lists the available effort values.
 
+  | Model | Supported effort values |
+  | --- | --- |
+  | `gpt-5.6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-5.6-terra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-5.6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
+  | `gpt-5.5` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.4` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.4-mini` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.3-codex-spark` (research preview for ChatGPT Pro) | `low`, `medium`, `high`, `xhigh` |
+
 - `codexCommit.effort`
   Effort passed to `codex exec -c model_reasoning_effort=...`. If unset (empty string), no effort is passed and the default behavior of the `codex` CLI / model is used.
+  Select an effort value supported by the chosen model.
 
 - `codexCommit.debugLog`
   Outputs debug logs to the `Codex Commit` output channel.

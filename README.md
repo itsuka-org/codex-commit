@@ -70,8 +70,19 @@ export NVM_DIR="$HOME/.nvm"
   `codex exec --model` に渡すモデル名（設定画面の選択肢から選べます）。未設定の場合は `codex` CLI のデフォルトを使います。
   Settings の各モデル説明に、利用可能な effort の種類を記載しています。
 
+  | モデル | 利用可能な effort |
+  | --- | --- |
+  | `gpt-5.6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-5.6-terra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-5.6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
+  | `gpt-5.5` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.4` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.4-mini` | `low`, `medium`, `high`, `xhigh` |
+  | `gpt-5.3-codex-spark`（ChatGPT Pro向け研究プレビュー） | `low`, `medium`, `high`, `xhigh` |
+
 - `codexCommit.effort`
   `codex exec -c model_reasoning_effort=...` に渡す effort。未設定（空文字）の場合は effort を渡さず、`codex` CLI / モデルのデフォルト動作を使います。
+  選択したモデルが対応している effort を指定してください。
 
 - `codexCommit.debugLog`
   デバッグログを `Codex Commit` 出力チャネルに出力します。
