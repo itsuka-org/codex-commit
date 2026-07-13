@@ -10,16 +10,19 @@ A VS Code extension that generates commit messages and branch names from your Gi
 - Create the branch from the dedicated input area using the `Create Branch` action button (the standard SCM button)
 - Reuse model (`codexCommit.model`) and effort (`codexCommit.effort`) settings for both commit and branch generation
 - Add action buttons to the Source Control title bar
-- Check `codex` PATH and authentication status with a diagnostics command
+- Run generation in an explicit read-only sandbox with an ephemeral, cancellable session
+- Check Codex version/PATH/authentication and built-in Git status with a diagnostics command
 
 ## Requirements
 
-- The `codex` CLI must be available
+- Codex CLI **0.142.3 or newer** must be available 
 - You must already be logged in with `codex login`, or have `CODEX_API_KEY` / `OPENAI_API_KEY` configured
+
+This is a Workspace Extension. It resolves the built-in Git API and Codex executable in the same Extension Host as the open workspace: locally for local workspaces and remotely for WSL, SSH, or Dev Containers.
 
 ### Notes for WSL
 
-The extension runs in the **WSL extension host**. It will not work unless `codex` is visible from the WSL environment.
+For a WSL workspace, the extension runs in the **WSL extension host**. It will not work unless `codex` is visible from the WSL environment.
 If you installed it with `nvm`, using `~/.vscode-server/server-env-setup` is the most reliable option.
 
 ```bash
@@ -41,7 +44,7 @@ export NVM_DIR="$HOME/.nvm"
 2. Click the branch button at the top right of Source Control
 3. A dedicated branch input area appears in SCM
 4. After Codex responds, the generated branch name appears in that input area
-5. Edit it if needed, then create the branch with the `Create Branch` action button
+5. Edit it if needed, then use the standard SCM accept action (Ctrl+Enter / Cmd+Enter) or the `Create Branch` action button
 6. VS Code automatically switches to the new branch
 
 If multiple Git trees or worktrees are shown in SCM, the target repository is resolved in the following priority order:
@@ -57,18 +60,32 @@ You can run `Codex Commit: Diagnostics` from the command palette to view diagnos
 
 ## Extension Settings
 
-- `codexCommit.codexPath`
-  Execution path for the `codex` CLI. If empty, it is resolved from PATH.
+- `codexCommit.model`
+  Model name passed to `codex exec --model` (selectable from the settings UI). If unset, the Codex CLI default is used.
 
-- `codexCommit.promptTemplate`
+- `codexCommit.effort`
+  Effort passed to `codex exec -c model_reasoning_effort=...`. If empty, the Codex CLI/model default is used.
+
+- `codexCommit.commitMessagePromptTemplate`
   Prompt template for commit message generation. `{{diff}}` is replaced with the staged diff.
 
-- `codexCommit.branchPromptTemplate`
+- `codexCommit.branchNamePromptTemplate`
   Prompt template for branch name generation. `{{diff}}` is replaced with the staged + unstaged diff.
 
-- `codexCommit.model`
-  Model name passed to `codex exec --model` (selectable from the settings UI). If unset, the default behavior of the `codex` CLI is used.
-  Each model description in Settings also lists the available effort values.
+- `codexCommit.codexPath`
+  Codex CLI path in the Extension Host environment. If empty, it is resolved from PATH.
+
+- `codexCommit.debugLog`
+  Writes sanitized process diagnostics to the `Codex Commit` output channel. API key values are never logged.
+
+Settings appear in that order: model, effort, commit message prompt, branch name prompt, Codex path, then debug log.
+Every setting supports User, Workspace, and Workspace Folder scopes; generation uses the most specific value for the selected Git repository.
+
+### Prompt setting migration
+
+Legacy `codexCommit.promptTemplate` and `codexCommit.branchPromptTemplate` values are hidden from Settings UI but remain readable as a fallback for at least one release. If both old and new values exist, the new setting wins, including an explicitly empty value. The extension never rewrites or deletes the legacy value.
+
+### Models and effort
 
   | Model | Supported effort values |
   | --- | --- |
@@ -80,12 +97,8 @@ You can run `Codex Commit: Diagnostics` from the command palette to view diagnos
   | `gpt-5.4-mini` | `low`, `medium`, `high`, `xhigh` |
   | `gpt-5.3-codex-spark` (research preview for ChatGPT Pro) | `low`, `medium`, `high`, `xhigh` |
 
-- `codexCommit.effort`
-  Effort passed to `codex exec -c model_reasoning_effort=...`. If unset (empty string), no effort is passed and the default behavior of the `codex` CLI / model is used.
-  Select an effort value supported by the chosen model.
-
-- `codexCommit.debugLog`
-  Outputs debug logs to the `Codex Commit` output channel.
+Select an effort value supported by the chosen model.
+Codex Commit supports CLI 0.142.3 and newer, but an individual model may require a later CLI. If so, update Codex CLI or select a model supported by the installed CLI.
 
 ## Commands
 
@@ -100,12 +113,26 @@ You can run `Codex Commit: Diagnostics` from the command palette to view diagnos
 ### `codex` cannot be found
 
 - Set `codexCommit.codexPath`
-- Or add `codex` to PATH via `~/.vscode-server/server-env-setup`
+- Check the local Extension Host PATH for local workspaces or the remote Extension Host PATH for remote workspaces
+- For WSL, add `codex` to PATH via `~/.vscode-server/server-env-setup` when needed
 
 ### Authentication errors
 
 - Run `codex login`
 - Or set `CODEX_API_KEY` / `OPENAI_API_KEY`
+
+### Codex CLI is too old
+
+Run `Codex Commit: Diagnostics` and inspect installed / minimum / compatible. Update to 0.142.3 or newer. Generation does not start `codex exec` for unsupported or unparseable versions.
+
+## Development
+
+```bash
+npm ci
+npm test
+npm run package
+npm run verify:vsix
+```
 
 ## License
 

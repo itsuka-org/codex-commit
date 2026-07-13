@@ -1,5 +1,7 @@
-import { Repository } from "../../types/git";
-import { truncate } from "../../shared/strings";
+import { buildDiffInput } from "../../shared/diffInputBuilder";
+import type { Repository } from "../../types/git";
+
+export const BRANCH_DIFF_MAX_CHARACTERS = 12_000;
 
 export async function collectBranchDiff(repository: Repository): Promise<string | null> {
   const [stagedRaw, unstagedRaw] = await Promise.all([repository.diff(true), repository.diff(false)]);
@@ -10,19 +12,13 @@ export async function collectBranchDiff(repository: Repository): Promise<string 
     return null;
   }
 
-  const hasBoth = Boolean(staged && unstaged);
-  const stagedMax = hasBoth ? 5500 : 12000;
-  const unstagedMax = hasBoth ? 5500 : 12000;
-  const sections: string[] = [];
-
-  if (staged) {
-    sections.push(`Staged diff:\n${truncate(staged, stagedMax)}`);
-  }
-  if (unstaged) {
-    sections.push(`Unstaged diff:\n${truncate(unstaged, unstagedMax)}`);
-  }
-
-  return sections.join("\n\n");
+  return buildDiffInput(
+    [
+      { label: "Staged diff", content: staged },
+      { label: "Unstaged diff", content: unstaged }
+    ],
+    BRANCH_DIFF_MAX_CHARACTERS
+  );
 }
 
 export function sanitizeBranchNameCandidate(raw: string): string {

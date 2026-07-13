@@ -1,8 +1,22 @@
-import { defineConfig } from '@vscode/test-cli';
+import { defineConfig } from "@vscode/test-cli";
 
-export default defineConfig({
-	files: 'out/test/**/*.test.js',
-	mocha: {
-		timeout: 20000
-	}
-});
+const common = {
+  files: "out/test/extension/**/*.test.js",
+  workspaceFolder: `${process.cwd()}/src/test/fixtures/workspace`,
+  mocha: {
+    timeout: 20_000
+  }
+};
+
+export default defineConfig([
+  {
+    ...common,
+    label: "min",
+    version: "1.109.0"
+  },
+  {
+    ...common,
+    label: "stable",
+    version: "stable"
+  }
+]);

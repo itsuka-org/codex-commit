@@ -20,8 +20,8 @@ export class OutputLogger implements vscode.Disposable {
     this.getChannel().show(preserveFocus);
   }
 
-  debug(message: string): void {
-    if (!this.isDebugEnabled()) {
+  debug(message: string, enabled = this.isDebugEnabled()): void {
+    if (!enabled) {
       return;
     }
 

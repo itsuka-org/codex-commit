@@ -4,69 +4,88 @@ import { BranchCreatorController } from "./features/branchCreator/branchCreatorC
 import { BranchCreatorSession } from "./features/branchCreator/branchCreatorSession";
 import { CommitMessageService } from "./features/commitMessage/commitMessageService";
 import { DiagnosticsService } from "./features/diagnostics/diagnosticsService";
-import { findBestMatchingRepositoryRoot } from "./features/repositorySelection/pathUtils";
-import { selectRepositoryRoot } from "./features/repositorySelection/selection";
 import { RepositoryResolver } from "./features/repositorySelection/repositoryResolver";
 import { CodexClient } from "./infrastructure/codex/codexClient";
-import { buildCodexErrorMessage, isAuthError, isTuiError, parseCodexJsonl } from "./infrastructure/codex/parsing";
-import { GitClient } from "./infrastructure/git/gitClient";
+import { GitExtensionGateway } from "./infrastructure/git/gitExtensionGateway";
+import { ProcessRunner } from "./infrastructure/process/processRunner";
+import { COMMANDS } from "./shared/commands";
 import { OutputLogger } from "./shared/outputLogger";
-import { sanitizeBranchNameCandidate } from "./features/branchCreator/branchName";
+import { VscodeUiAdapter } from "./shared/ui";
 
 const OUTPUT_CHANNEL_NAME = "Codex Commit";
 
-export function activate(context: vscode.ExtensionContext) {
-  const logger = new OutputLogger(OUTPUT_CHANNEL_NAME, () => getCodexCommitConfig().debugLog);
-  const repositoryResolver = new RepositoryResolver();
-  const codexClient = new CodexClient(logger);
-  const gitClient = new GitClient();
-  const branchCreatorSession = new BranchCreatorSession({
-    command: "codexCommit.createBranchFromGeneratedInput",
-    title: "Create branch"
-  });
-  const commitMessageService = new CommitMessageService(repositoryResolver, codexClient);
-  const branchCreatorController = new BranchCreatorController(repositoryResolver, codexClient, gitClient, branchCreatorSession);
-  const diagnosticsService = new DiagnosticsService(codexClient, logger);
-
-  const generateCommit = vscode.commands.registerCommand("codexCommit.generate", async (sourceControl?: unknown) =>
-    commitMessageService.generate({ hint: sourceControl })
-  );
-  const generateBranchName = vscode.commands.registerCommand("codexCommit.generateBranchName", async (sourceControl?: unknown) =>
-    branchCreatorController.generate({ hint: sourceControl })
-  );
-  const regenerateBranchName = vscode.commands.registerCommand(
-    "codexCommit.regenerateBranchName",
-    async (sourceControl?: unknown) =>
-      branchCreatorController.generate({
-        hint: sourceControl,
-        preferredRoot: branchCreatorSession.getTargetRepoRoot()
+export function activate(context: vscode.ExtensionContext): void {
+  const disposables: vscode.Disposable[] = [];
+  try {
+    const getConfig = (cwd?: string) => getCodexCommitConfig(cwd ? vscode.Uri.file(cwd) : undefined);
+    const ui = new VscodeUiAdapter();
+    const logger = new OutputLogger(OUTPUT_CHANNEL_NAME, () => getConfig().debugLog);
+    const processRunner = new ProcessRunner();
+    const gitGateway = new GitExtensionGateway(() =>
+      vscode.extensions.getExtension<import("./types/git").GitExtensionExports>("vscode.git")
+    );
+    const repositoryResolver = new RepositoryResolver(gitGateway, ui);
+    const codexClient = new CodexClient(logger, processRunner, {
+      getConfig,
+      getRemoteName: () => vscode.env.remoteName,
+      environment: process.env
+    });
+    const branchCreatorSession = new BranchCreatorSession({
+      command: COMMANDS.createBranch,
+      title: "Create branch"
+    });
+    const commitMessageService = new CommitMessageService(
+      repositoryResolver,
+      codexClient,
+      ui,
+      getConfig
+    );
+    const branchCreatorController = new BranchCreatorController(
+      repositoryResolver,
+      codexClient,
+      branchCreatorSession,
+      ui,
+      getConfig
+    );
+    const diagnosticsService = new DiagnosticsService(
+      codexClient,
+      gitGateway,
+      logger,
+      ui,
+      getConfig,
+      () => ({
+        cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd(),
+        remoteName: vscode.env.remoteName,
+        environment: process.env
       })
-  );
-  const createBranchFromGeneratedInput = vscode.commands.registerCommand(
-    "codexCommit.createBranchFromGeneratedInput",
-    async () => branchCreatorController.createFromInput()
-  );
-  const diagnostics = vscode.commands.registerCommand("codexCommit.diagnostics", async () => diagnosticsService.run());
+    );
 
-  context.subscriptions.push(
-    logger,
-    branchCreatorSession,
-    generateCommit,
-    generateBranchName,
-    regenerateBranchName,
-    createBranchFromGeneratedInput,
-    diagnostics
-  );
+    disposables.push(
+      logger,
+      processRunner,
+      branchCreatorSession,
+      commitMessageService,
+      branchCreatorController,
+      vscode.commands.registerCommand(COMMANDS.generateCommitMessage, async (sourceControl?: unknown) =>
+        commitMessageService.generate({ hint: sourceControl })
+      ),
+      vscode.commands.registerCommand(COMMANDS.generateBranchName, async (sourceControl?: unknown) =>
+        branchCreatorController.generate({ hint: sourceControl })
+      ),
+      vscode.commands.registerCommand(COMMANDS.regenerateBranchName, async (sourceControl?: unknown) =>
+        branchCreatorController.generate({
+          hint: sourceControl,
+          preferredRoot: branchCreatorSession.getTargetRepoUri()
+        })
+      ),
+      vscode.commands.registerCommand(COMMANDS.createBranch, async () => branchCreatorController.createFromInput()),
+      vscode.commands.registerCommand(COMMANDS.diagnostics, async () => diagnosticsService.run())
+    );
+    context.subscriptions.push(...disposables);
+  } catch (error) {
+    for (const disposable of disposables.reverse()) {
+      disposable.dispose();
+    }
+    throw error;
+  }
 }
-
-export function deactivate() {}
-
-export {
-  buildCodexErrorMessage,
-  findBestMatchingRepositoryRoot,
-  isAuthError,
-  isTuiError,
-  parseCodexJsonl,
-  sanitizeBranchNameCandidate,
-  selectRepositoryRoot
-};

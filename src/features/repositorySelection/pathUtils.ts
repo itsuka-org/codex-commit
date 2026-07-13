@@ -1,14 +1,18 @@
-import * as path from "path";
+import * as path from "node:path";
 
-export function findBestMatchingRepositoryRoot(repositoryRoots: readonly string[], targetPath: string): string | undefined {
+export function findBestMatchingRepositoryRoot(
+  repositoryRoots: readonly string[],
+  targetPath: string,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
   let bestMatch: string | undefined;
 
   for (const root of repositoryRoots) {
-    if (!isSameOrDescendantPath(root, targetPath)) {
+    if (!isSameOrDescendantPath(root, targetPath, platform)) {
       continue;
     }
 
-    if (!bestMatch || normalizeFilePath(root).length > normalizeFilePath(bestMatch).length) {
+    if (!bestMatch || normalizeFilePath(root, platform).length > normalizeFilePath(bestMatch, platform).length) {
       bestMatch = root;
     }
   }
@@ -16,16 +20,24 @@ export function findBestMatchingRepositoryRoot(repositoryRoots: readonly string[
   return bestMatch;
 }
 
-export function isSameOrDescendantPath(parentPath: string, targetPath: string): boolean {
-  const relativePath = path.relative(normalizeFilePath(parentPath), normalizeFilePath(targetPath));
-  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
+export function isSameOrDescendantPath(
+  parentPath: string,
+  targetPath: string,
+  platform: NodeJS.Platform = process.platform
+): boolean {
+  const pathApi = platform === "win32" ? path.win32 : path.posix;
+  const relativePath = pathApi.relative(
+    normalizeFilePath(parentPath, platform),
+    normalizeFilePath(targetPath, platform)
+  );
+  return relativePath === "" || (!relativePath.startsWith("..") && !pathApi.isAbsolute(relativePath));
 }
 
-export function sameFilePath(left: string, right: string): boolean {
-  return normalizeFilePath(left) === normalizeFilePath(right);
+export function sameFilePath(left: string, right: string, platform: NodeJS.Platform = process.platform): boolean {
+  return normalizeFilePath(left, platform) === normalizeFilePath(right, platform);
 }
 
-export function normalizeFilePath(fsPath: string): string {
-  const normalized = path.normalize(fsPath);
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+export function normalizeFilePath(fsPath: string, platform: NodeJS.Platform = process.platform): string {
+  const normalized = platform === "win32" ? path.win32.normalize(fsPath) : path.posix.normalize(fsPath);
+  return platform === "win32" ? normalized.toLowerCase() : normalized;
 }

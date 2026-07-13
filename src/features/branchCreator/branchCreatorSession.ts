@@ -5,80 +5,57 @@ import {
   BRANCH_CREATOR_SCM_LABEL
 } from "./constants";
 
-type BranchCreatorSessionState = {
-  visible: boolean;
-  placeholder: string;
-  value: string;
-  targetRepoRoot?: string;
-};
+export interface BranchCreatorSessionPort {
+  show(placeholder: string, value: string, targetRepoUri: vscode.Uri): void;
+  hide(): void;
+  getInputValue(): string;
+  getTargetRepoUri(): vscode.Uri | undefined;
+}
 
-export class BranchCreatorSession implements vscode.Disposable {
+export class BranchCreatorSession implements vscode.Disposable, BranchCreatorSessionPort {
   private sourceControl: vscode.SourceControl | undefined;
-  private state: BranchCreatorSessionState = {
-    visible: false,
-    placeholder: BRANCH_CREATOR_PLACEHOLDER_DEFAULT,
-    value: ""
-  };
+  private targetRepoUri: vscode.Uri | undefined;
 
   constructor(private readonly acceptInputCommand: vscode.Command) {}
 
-  show(placeholder: string, value: string, targetRepoRoot: string): void {
-    this.state = {
-      visible: true,
-      placeholder,
-      value,
-      targetRepoRoot
-    };
-    this.applyState();
+  show(placeholder: string, value: string, targetRepoUri: vscode.Uri): void {
+    const inputBox = this.ensureSourceControl(targetRepoUri).inputBox;
+    this.targetRepoUri = targetRepoUri;
+    inputBox.placeholder = placeholder;
+    inputBox.value = value;
+    inputBox.visible = true;
+    inputBox.enabled = true;
   }
 
   hide(): void {
-    if (!this.sourceControl) {
-      this.state = {
-        visible: false,
-        placeholder: BRANCH_CREATOR_PLACEHOLDER_DEFAULT,
-        value: ""
-      };
-      return;
-    }
-
-    this.state = {
-      visible: false,
-      placeholder: BRANCH_CREATOR_PLACEHOLDER_DEFAULT,
-      value: ""
-    };
-
-    const sourceControl = this.sourceControl;
-    sourceControl.dispose();
+    this.sourceControl?.dispose();
     this.sourceControl = undefined;
+    this.targetRepoUri = undefined;
   }
 
   getInputValue(): string {
-    return this.sourceControl?.inputBox.value.trim() ?? this.state.value.trim();
+    return this.sourceControl?.inputBox.value.trim() ?? "";
   }
 
-  getTargetRepoRoot(): string | undefined {
-    return this.state.targetRepoRoot;
+  getTargetRepoUri(): vscode.Uri | undefined {
+    return this.targetRepoUri;
   }
 
   dispose(): void {
     this.hide();
   }
 
-  private applyState(): void {
-    const inputBox = this.ensureSourceControl().inputBox;
-    inputBox.placeholder = this.state.placeholder;
-    inputBox.value = this.state.value;
-    inputBox.visible = this.state.visible;
-    inputBox.enabled = true;
-  }
-
-  private ensureSourceControl(): vscode.SourceControl {
-    if (this.sourceControl) {
+  private ensureSourceControl(rootUri: vscode.Uri): vscode.SourceControl {
+    if (this.sourceControl && this.sourceControl.rootUri?.toString() === rootUri.toString()) {
       return this.sourceControl;
     }
 
-    const sourceControl = vscode.scm.createSourceControl(BRANCH_CREATOR_SCM_ID, BRANCH_CREATOR_SCM_LABEL);
+    this.sourceControl?.dispose();
+    const sourceControl = vscode.scm.createSourceControl(
+      BRANCH_CREATOR_SCM_ID,
+      BRANCH_CREATOR_SCM_LABEL,
+      rootUri
+    );
     sourceControl.acceptInputCommand = this.acceptInputCommand;
     sourceControl.inputBox.enabled = true;
     sourceControl.inputBox.visible = false;

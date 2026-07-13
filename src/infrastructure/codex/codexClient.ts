@@ -1,192 +1,232 @@
-import * as vscode from "vscode";
-import { spawn } from "child_process";
-import { getCodexCommitConfig } from "../../config/codexCommitConfig";
-import { OutputLogger } from "../../shared/outputLogger";
-import { CommandResult } from "../../shared/process";
+import { randomBytes } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { CodexCommitConfig } from "../../config/codexCommitConfig";
+import { getErrorDetails, summarizeErrorOutput } from "../../shared/errors";
 import { renderCommand, truncateForLog } from "../../shared/strings";
-import { buildCodexErrorMessage, isAuthError, LoginStatus, parseCodexJsonl } from "./parsing";
-import { summarizeErrorOutput } from "../../shared/errorOutput";
+import {
+  ProcessRunnerError,
+  type ProcessResult,
+  type ProcessRunOptions
+} from "../process/processRunner";
+import { buildNonZeroExitError, buildVersionError, CodexError } from "./codexErrors";
+import {
+  formatNumericVersion,
+  isSupportedCodexVersion,
+  MIN_SUPPORTED_CODEX_VERSION,
+  parseCodexVersion,
+  type CodexVersionStatus
+} from "./version";
 
-export class CodexClient {
-  constructor(private readonly logger: OutputLogger) {}
+const CODEX_TIMEOUT_MS = 120_000;
+const CODEX_OUTPUT_LIMIT_BYTES = 1024 * 1024;
 
-  async run(prompt: string, cwd: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const env = { ...process.env };
-      if (!env.CODEX_API_KEY && env.OPENAI_API_KEY) {
-        env.CODEX_API_KEY = env.OPENAI_API_KEY;
-      }
+export type LoginStatus = {
+  ok: boolean;
+  reason?: "not_found" | "auth" | "unknown";
+  detail?: string;
+};
 
-      const config = getCodexCommitConfig();
-      const codexPath = config.codexPath || "codex";
-      const args = ["exec"];
-      if (config.model) {
-        args.push("--model", config.model);
-      }
-      if (config.effort) {
-        args.push("-c", `model_reasoning_effort=\"${config.effort}\"`);
-      }
-      args.push("--json", "--color", "never", "--skip-git-repo-check", "-");
+export interface DebugLogger {
+  debug(message: string, enabled?: boolean): void;
+}
 
-      this.logger.debug(`spawn: ${renderCommand(codexPath, args)} (cwd=${cwd})`);
-      this.logger.debug(`model argument: ${config.model || "(none: codex CLI default)"}`);
-      this.logger.debug(`effort argument: ${config.effort || "(none: codex CLI default)"}`);
+export interface ProcessRunnerPort {
+  run(options: ProcessRunOptions): Promise<ProcessResult>;
+}
 
-      const child = spawn(codexPath, args, { stdio: "pipe", cwd, env });
-      let stdout = "";
-      let stderr = "";
+export interface CodexClientPort {
+  run(prompt: string, cwd: string, signal?: AbortSignal): Promise<string>;
+}
 
-      child.stdout.on("data", chunk => {
-        stdout += chunk.toString();
-      });
-      child.stderr.on("data", chunk => {
-        stderr += chunk.toString();
-      });
-      child.on("error", err => {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === "ENOENT") {
-          reject(
-            new Error(
-              codexPath === "codex"
-                ? "codex CLI not found in PATH for the extension host. Install it in WSL or add it to PATH via ~/.vscode-server/server-env-setup."
-                : `codex CLI not found at configured path: ${codexPath}`
-            )
-          );
-          return;
-        }
+export type CodexClientOptions = {
+  getConfig: (cwd?: string) => CodexCommitConfig;
+  getRemoteName?: () => string | undefined;
+  environment?: NodeJS.ProcessEnv;
+};
 
-        reject(err);
-      });
-      child.on("close", code => {
-        this.logger.debug(`codex exit code: ${code ?? "unknown"}`);
-        if (stderr.trim()) {
-          this.logger.debug(`codex stderr:\n${truncateForLog(stderr.trim(), 1200)}`);
-        }
-        if (stdout.trim()) {
-          this.logger.debug(`codex stdout (jsonl):\n${truncateForLog(stdout.trim(), 1200)}`);
-        }
+export class CodexClient implements CodexClientPort {
+  private readonly versionChecks = new Map<string, Promise<CodexVersionStatus>>();
 
-        if (code === 0) {
-          const message = parseCodexJsonl(stdout);
-          if (message) {
-            this.logger.debug(`parsed message:\n${truncateForLog(message, 500)}`);
-            resolve(message);
-            return;
-          }
+  constructor(
+    private readonly logger: DebugLogger,
+    private readonly processRunner: ProcessRunnerPort,
+    private readonly options: CodexClientOptions
+  ) {}
 
-          reject(new Error("codex returned no agent message in JSON output."));
-          return;
-        }
-
-        reject(new Error(buildCodexErrorMessage(stderr, stdout, code)));
-      });
-
-      if (!child.stdin) {
-        reject(new Error("Failed to open stdin for codex process."));
-        return;
-      }
-
-      child.stdin.write(prompt);
-      child.stdin.end();
-    });
-  }
-
-  async ensureAuthenticated(cwd: string): Promise<boolean> {
-    if (process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY) {
-      return true;
+  async run(prompt: string, cwd: string, signal?: AbortSignal): Promise<string> {
+    const config = this.options.getConfig(cwd);
+    const executable = config.codexPath || "codex";
+    const version = await this.getVersionStatus(cwd, executable);
+    if (!version.compatible) {
+      throw buildVersionError(version);
     }
 
-    const status = await this.getLoginStatus(cwd);
-    const config = getCodexCommitConfig();
-    if (status.ok) {
-      return true;
-    }
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), "codex-commit-"));
+    const outputPath = join(temporaryDirectory, `${randomBytes(16).toString("hex")}.txt`);
+    await writeFile(outputPath, "", { encoding: "utf8", mode: 0o600 });
 
-    if (status.reason === "not_found") {
-      vscode.window.showErrorMessage(
-        config.codexPath
-          ? `codex CLI not found at configured path: ${config.codexPath}`
-          : "codex CLI not found in PATH for the extension host. Install it in WSL or add it to PATH via ~/.vscode-server/server-env-setup."
-      );
-      return false;
-    }
+    const args = buildCodexExecArgs(config, outputPath);
+    const env = buildCodexEnvironment(this.options.environment ?? process.env);
+    this.logger.debug(`spawn: ${renderCommand(executable, args)} (cwd=${cwd})`, config.debugLog);
+    this.logger.debug(`model argument: ${config.model || "(none: Codex CLI default)"}`, config.debugLog);
+    this.logger.debug(`effort argument: ${config.effort || "(none: Codex CLI default)"}`, config.debugLog);
 
-    if (status.reason === "auth") {
-      const detail = status.detail ? ` Details: ${status.detail}` : "";
-      vscode.window.showErrorMessage(
-        "Codex CLI is not authenticated for the extension host. Run `codex login` in WSL or set CODEX_API_KEY in ~/.vscode-server/server-env-setup." +
-          detail
-      );
-      return false;
-    }
-
-    const detail = status.detail ? ` Details: ${status.detail}` : "";
-    vscode.window.showErrorMessage(`Codex CLI failed to verify login status.${detail}`);
-    return false;
-  }
-
-  getVersion(cwd: string): Promise<CommandResult> {
-    return this.runCommand(["--version"], cwd);
-  }
-
-  getLoginStatus(cwd: string): Promise<LoginStatus> {
-    const config = getCodexCommitConfig();
-    return new Promise(resolve => {
-      const command = config.codexPath || "codex";
-      const child = spawn(command, ["login", "status"], { stdio: "pipe", cwd });
-      let stdout = "";
-      let stderr = "";
-
-      child.stdout.on("data", chunk => {
-        stdout += chunk.toString();
+    try {
+      const result = await this.processRunner.run({
+        command: executable,
+        args,
+        cwd,
+        env,
+        stdin: prompt,
+        signal,
+        timeoutMs: CODEX_TIMEOUT_MS,
+        maxOutputBytes: CODEX_OUTPUT_LIMIT_BYTES
       });
-      child.stderr.on("data", chunk => {
-        stderr += chunk.toString();
-      });
-      child.on("error", err => {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code === "ENOENT") {
-          resolve({ ok: false, reason: "not_found" });
-          return;
+      this.logResult(result, config.debugLog);
+      if (result.code !== 0) {
+        throw buildNonZeroExitError(result.stderr, result.stdout, result.code, this.options.getRemoteName?.() === "wsl");
+      }
+
+      let message: string;
+      try {
+        message = await readFile(outputPath, "utf8");
+      } catch (error) {
+        const details = getErrorDetails(error);
+        if (details.code === "ENOENT") {
+          throw new CodexError("missing_output", "Codex CLI did not create its final-message output file.", {
+            cause: error
+          });
         }
-
-        resolve({ ok: false, reason: "unknown", detail: err.message });
-      });
-      child.on("close", code => {
-        if (code === 0) {
-          resolve({ ok: true });
-          return;
-        }
-
-        const combined = (stderr || stdout).trim();
-        resolve({
-          ok: false,
-          reason: isAuthError(combined) ? "auth" : "unknown",
-          detail: summarizeErrorOutput(combined)
+        throw new CodexError("read_output", `Failed to read the Codex final-message output: ${details.message}`, {
+          cause: error
         });
-      });
-    });
+      }
+
+      if (!message.trim()) {
+        throw new CodexError("empty_output", "Codex CLI returned an empty final message.");
+      }
+      this.logger.debug(`final message:\n${truncateForLog(message.trim(), 500)}`, config.debugLog);
+      return message.trim();
+    } catch (error) {
+      if (error instanceof ProcessRunnerError && error.kind === "spawn" && error.code === "ENOENT") {
+        throw new CodexError("not_found", this.notFoundMessage(executable), { cause: error });
+      }
+      throw error;
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
   }
 
-  private runCommand(args: string[], cwd: string): Promise<CommandResult> {
-    return new Promise(resolve => {
-      const command = getCodexCommitConfig().codexPath || "codex";
-      const child = spawn(command, args, { stdio: "pipe", cwd });
-      let stdout = "";
-      let stderr = "";
+  getVersionStatus(cwd: string, executable = this.options.getConfig(cwd).codexPath || "codex"): Promise<CodexVersionStatus> {
+    const cached = this.versionChecks.get(executable);
+    if (cached) {
+      return cached;
+    }
 
-      child.stdout.on("data", chunk => {
-        stdout += chunk.toString();
-      });
-      child.stderr.on("data", chunk => {
-        stderr += chunk.toString();
-      });
-      child.on("error", err => {
-        resolve({ code: null, stdout: "", stderr: "", error: err.message });
-      });
-      child.on("close", code => {
-        resolve({ code, stdout, stderr });
-      });
-    });
+    const check = this.checkVersion(cwd, executable);
+    this.versionChecks.set(executable, check);
+    return check;
   }
+
+  async getLoginStatus(cwd: string): Promise<LoginStatus> {
+    const executable = this.options.getConfig(cwd).codexPath || "codex";
+    try {
+      const result = await this.processRunner.run({
+        command: executable,
+        args: ["login", "status"],
+        cwd,
+        timeoutMs: 15_000,
+        maxOutputBytes: 64 * 1024
+      });
+      if (result.code === 0) {
+        return { ok: true };
+      }
+      const combined = (result.stderr || result.stdout).trim();
+      return {
+        ok: false,
+        reason: combined.toLowerCase().includes("auth") || combined.toLowerCase().includes("logged in") ? "auth" : "unknown",
+        detail: summarizeErrorOutput(combined)
+      };
+    } catch (error) {
+      if (error instanceof ProcessRunnerError && error.kind === "spawn" && error.code === "ENOENT") {
+        return { ok: false, reason: "not_found" };
+      }
+      return { ok: false, reason: "unknown", detail: getErrorDetails(error).message };
+    }
+  }
+
+  private async checkVersion(cwd: string, executable: string): Promise<CodexVersionStatus> {
+    try {
+      const result = await this.processRunner.run({
+        command: executable,
+        args: ["--version"],
+        cwd,
+        timeoutMs: 15_000,
+        maxOutputBytes: 64 * 1024
+      });
+      const raw = (result.stdout || result.stderr).trim();
+      const parsed = result.code === 0 ? parseCodexVersion(raw) : undefined;
+      return {
+        executable,
+        raw,
+        installed: parsed ? formatNumericVersion(parsed) : undefined,
+        minimum: MIN_SUPPORTED_CODEX_VERSION,
+        compatible: Boolean(parsed && isSupportedCodexVersion(parsed))
+      };
+    } catch (error) {
+      if (error instanceof ProcessRunnerError && error.kind === "spawn" && error.code === "ENOENT") {
+        throw new CodexError("not_found", this.notFoundMessage(executable), { cause: error });
+      }
+      throw error;
+    }
+  }
+
+  private notFoundMessage(executable: string): string {
+    if (executable !== "codex") {
+      return `Codex CLI was not found at the configured path: ${executable}`;
+    }
+    const wslHint = this.options.getRemoteName?.() === "wsl" ? " Install it in WSL or expose it to the WSL extension host PATH." : "";
+    return `Codex CLI was not found in PATH for the extension host environment.${wslHint}`;
+  }
+
+  private logResult(result: ProcessResult, debugEnabled: boolean): void {
+    this.logger.debug(`codex exit code: ${result.code ?? "unknown"}`, debugEnabled);
+    if (result.stderr.trim()) {
+      this.logger.debug(`codex stderr:\n${truncateForLog(result.stderr.trim(), 1200)}`, debugEnabled);
+    }
+    if (result.stdout.trim()) {
+      this.logger.debug(`codex stdout:\n${truncateForLog(result.stdout.trim(), 1200)}`, debugEnabled);
+    }
+  }
+}
+
+export function buildCodexExecArgs(config: CodexCommitConfig, outputPath: string): string[] {
+  const args = ["exec"];
+  if (config.model) {
+    args.push("--model", config.model);
+  }
+  if (config.effort) {
+    args.push("-c", `model_reasoning_effort=\"${config.effort}\"`);
+  }
+  args.push(
+    "--sandbox",
+    "read-only",
+    "--ephemeral",
+    "--output-last-message",
+    outputPath,
+    "--color",
+    "never",
+    "-"
+  );
+  return args;
+}
+
+export function buildCodexEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const result = { ...environment };
+  if (!result.CODEX_API_KEY && result.OPENAI_API_KEY) {
+    result.CODEX_API_KEY = result.OPENAI_API_KEY;
+  }
+  return result;
 }

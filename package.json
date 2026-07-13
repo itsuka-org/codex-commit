@@ -4,21 +4,20 @@
   "publisher": "itsukaorg",
   "repository": "https://github.com/itsuka-org/codex-commit",
   "description": "Generate commit messages and branch names from your Git diff with Codex, right inside VS Code.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "license": "MIT",
-  "icon": "src/cc_icon.png",
+  "icon": "media/cc_icon.png",
   "engines": {
     "vscode": "^1.109.0"
   },
+  "extensionKind": [
+    "workspace"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "categories": [
     "Other"
-  ],
-  "activationEvents": [
-    "onCommand:codexCommit.generate",
-    "onCommand:codexCommit.generateBranchName",
-    "onCommand:codexCommit.regenerateBranchName",
-    "onCommand:codexCommit.createBranchFromGeneratedInput",
-    "onCommand:codexCommit.diagnostics"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -72,37 +71,14 @@
         }
       ]
     },
-    "keybindings": [
-      {
-        "command": "codexCommit.createBranchFromGeneratedInput",
-        "key": "ctrl+enter",
-        "mac": "cmd+enter",
-        "when": "scmProvider == codexCommitBranchCreator && scmRepository && inputFocus"
-      }
-    ],
     "configuration": {
       "title": "Codex Commit",
       "properties": {
-        "codexCommit.codexPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the codex CLI. Leave empty to use PATH resolution."
-        },
-        "codexCommit.promptTemplate": {
-          "type": "string",
-          "editPresentation": "multilineText",
-          "default": "You are a senior engineer.\nGenerate a git commit message based ONLY on the staged diff.\n\nOutput format:\n1) First line: Conventional Commits (feat|fix|refactor|docs|test|chore|perf|build|ci)(optional scope): subject (<= 72 chars)\n2) Blank line\n3) Bullet points (optional)\n\nStaged diff:\n{{diff}}",
-          "description": "Prompt template for Codex. Use {{diff}} to insert the staged diff."
-        },
-        "codexCommit.branchPromptTemplate": {
-          "type": "string",
-          "editPresentation": "multilineText",
-          "default": "You are a senior engineer.\nGenerate a concise git branch name based ONLY on the provided git diff.\n\nRules:\n- Output one branch name only, with no explanation.\n- Use lowercase.\n- Use kebab-case.\n- Prefer prefixes like feat/, fix/, chore/, docs/, refactor/, test/.\n\nDiff:\n{{diff}}",
-          "description": "Prompt template for branch names. Use {{diff}} to insert staged+unstaged diff."
-        },
         "codexCommit.model": {
           "type": "string",
           "default": "",
+          "order": 10,
+          "scope": "resource",
           "enum": [
             "",
             "gpt-5.6-sol",
@@ -128,6 +104,8 @@
         "codexCommit.effort": {
           "type": "string",
           "default": "",
+          "order": 20,
+          "scope": "resource",
           "enum": [
             "",
             "low",
@@ -148,35 +126,67 @@
           ],
           "description": "Reasoning effort passed via `codex exec -c model_reasoning_effort=...`. Empty keeps codex CLI default."
         },
+        "codexCommit.commitMessagePromptTemplate": {
+          "type": "string",
+          "editPresentation": "multilineText",
+          "order": 30,
+          "scope": "resource",
+          "default": "You are a senior engineer.\nGenerate a git commit message based ONLY on the staged diff.\n\nOutput format:\n1) First line: Conventional Commits (feat|fix|refactor|docs|test|chore|perf|build|ci)(optional scope): subject (<= 72 chars)\n2) Blank line\n3) Bullet points (optional)\n\nStaged diff:\n{{diff}}",
+          "description": "Prompt template used only for commit-message generation. Use {{diff}} to insert the staged diff."
+        },
+        "codexCommit.branchNamePromptTemplate": {
+          "type": "string",
+          "editPresentation": "multilineText",
+          "order": 40,
+          "scope": "resource",
+          "default": "You are a senior engineer.\nGenerate a concise git branch name based ONLY on the provided git diff.\n\nRules:\n- Output one branch name only, with no explanation.\n- Use lowercase.\n- Use kebab-case.\n- Prefer prefixes like feat/, fix/, chore/, docs/, refactor/, test/.\n\nDiff:\n{{diff}}",
+          "description": "Prompt template used only for branch-name generation. Use {{diff}} to insert staged and unstaged diffs."
+        },
+        "codexCommit.codexPath": {
+          "type": "string",
+          "default": "",
+          "order": 50,
+          "scope": "resource",
+          "description": "Path to the Codex CLI in the extension host environment. Leave empty to use PATH resolution."
+        },
         "codexCommit.debugLog": {
           "type": "boolean",
           "default": false,
-          "description": "Write debug logs (spawned command, model argument, codex stdout/stderr, parsed assistant message) to the 'Codex Commit' output channel."
+          "order": 60,
+          "scope": "resource",
+          "description": "Write sanitized process diagnostics and Codex stdout/stderr to the 'Codex Commit' output channel."
         }
       }
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "node scripts/clean.mjs && tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test",
-    "package": "vsce package"
+    "test:unit": "mocha \"out/test/unit/**/*.test.js\" --ui tdd --forbid-pending",
+    "test:extension:min": "vscode-test --label min --forbid-pending",
+    "test:extension:stable": "vscode-test --label stable --forbid-pending",
+    "test": "npm run compile && npm run lint && npm run test:unit && npm run test:extension:min && npm run test:extension:stable",
+    "package": "npm run compile && vsce package",
+    "verify:vsix": "node scripts/verify-vsix.mjs"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.9.2",
     "@types/mocha": "^10.0.10",
-    "@types/node": "25.x",
+    "@types/node": "22.x",
     "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
-    "eslint": "^10.0.2",
+    "adm-zip": "^0.5.16",
+    "eslint": "^9.39.2",
+    "mocha": "^11.7.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
   },
-  "packageManager": "pnpm@10.30.3",
-  "dependencies": {
-    "vsce": "^2.15.0"
-  }
+  "overrides": {
+    "diff": "8.0.3",
+    "serialize-javascript": "7.0.7"
+  },
+  "packageManager": "npm@11.17.0"
 }
