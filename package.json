@@ -4,7 +4,7 @@
   "publisher": "itsukaorg",
   "repository": "https://github.com/itsuka-org/codex-commit",
   "description": "Generate commit messages and branch names from your Git diff with Codex, right inside VS Code.",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "license": "MIT",
   "icon": "media/cc_icon.png",
   "engines": {
@@ -81,25 +81,23 @@
           "scope": "resource",
           "enum": [
             "",
+            "gpt-6-astra",
             "gpt-5.6-sol",
             "gpt-5.6-terra",
             "gpt-5.6-luna",
             "gpt-5.5",
-            "gpt-5.4",
-            "gpt-5.4-mini",
             "gpt-5.3-codex-spark"
           ],
           "enumDescriptions": [
             "Default (Codex CLI default; effort also uses codex CLI/model default)",
+            "Most capable model for complex reasoning, coding, computer use, and research. Effort: low, medium, high, xhigh, max, ultra.",
             "Flagship GPT-5.6 model for complex coding, computer use, research, and cybersecurity. Effort: low, medium, high, xhigh, max, ultra.",
             "Balanced GPT-5.6 model for everyday work. Effort: low, medium, high, xhigh, max, ultra.",
             "Fast and affordable GPT-5.6 model for clear, repeatable work. Effort: low, medium, high, xhigh, max.",
             "Previous-generation frontier model for complex coding, computer use, knowledge work, and research. Effort: low, medium, high, xhigh.",
-            "Strong model for everyday coding and agentic workflows. Effort: low, medium, high, xhigh.",
-            "Small, fast, and cost-efficient model for simpler coding tasks. Effort: low, medium, high, xhigh.",
             "Text-only research preview for near-instant coding iteration. Available to ChatGPT Pro users. Effort: low, medium, high, xhigh."
           ],
-          "description": "Model name passed to `codex exec --model`."
+          "description": "Model name passed to `codex exec --model`. Availability depends on your account, sign-in method, and Codex CLI version."
         },
         "codexCommit.effort": {
           "type": "string",
@@ -121,8 +119,8 @@
             "Medium — balanced speed and reasoning depth (all listed models)",
             "High — greater reasoning depth (all listed models)",
             "Extra high — for difficult, multi-step work (all listed models)",
-            "Maximum reasoning depth (GPT-5.6 Sol, Terra, and Luna only)",
-            "Maximum reasoning with automatic task delegation (GPT-5.6 Sol and Terra only)"
+            "Maximum reasoning depth (GPT-6 Astra and GPT-5.6 Sol, Terra, and Luna only)",
+            "Maximum reasoning with automatic task delegation (GPT-6 Astra and GPT-5.6 Sol and Terra only)"
           ],
           "description": "Reasoning effort passed via `codex exec -c model_reasoning_effort=...`. Empty keeps codex CLI default."
         },
@@ -174,19 +172,21 @@
   "devDependencies": {
     "@vscode/vsce": "^3.9.2",
     "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "@types/vscode": "^1.109.0",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2",
-    "adm-zip": "^0.5.16",
-    "eslint": "^9.39.2",
-    "mocha": "^11.7.5",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.56.1"
+    "@types/node": "^22.20.1",
+    "@types/vscode": "1.109.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "adm-zip": "^0.6.0",
+    "eslint": "^10.10.0",
+    "mocha": "^12.0.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.69.0"
   },
+  "packageManager": "npm@11.17.0",
   "overrides": {
-    "diff": "8.0.3",
-    "serialize-javascript": "7.0.7"
-  },
-  "packageManager": "npm@11.17.0"
+    "mocha@11": {
+      "diff": "^8.0.4",
+      "serialize-javascript": "^7.1.1"
+    }
+  }
 }

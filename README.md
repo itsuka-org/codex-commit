@@ -90,12 +90,11 @@ export NVM_DIR="$HOME/.nvm"
 
   | モデル | 利用可能な effort |
   | --- | --- |
+  | `gpt-6-astra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-terra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
   | `gpt-5.5` | `low`, `medium`, `high`, `xhigh` |
-  | `gpt-5.4` | `low`, `medium`, `high`, `xhigh` |
-  | `gpt-5.4-mini` | `low`, `medium`, `high`, `xhigh` |
   | `gpt-5.3-codex-spark`（ChatGPT Pro向け研究プレビュー） | `low`, `medium`, `high`, `xhigh` |
 
 選択したモデルが対応している effort を指定してください。
