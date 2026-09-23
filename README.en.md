@@ -90,11 +90,12 @@ Legacy `codexCommit.promptTemplate` and `codexCommit.branchPromptTemplate` value
   | Model | Supported effort values |
   | --- | --- |
   | `gpt-6-astra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
   | `gpt-5.6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-terra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
   | `gpt-5.5` | `low`, `medium`, `high`, `xhigh` |
-  | `gpt-5.3-codex-spark` (research preview for ChatGPT Pro) | `low`, `medium`, `high`, `xhigh` |
 
 Select an effort value supported by the chosen model.
 Codex Commit supports CLI 0.142.3 and newer, but an individual model may require a later CLI. If so, update Codex CLI or select a model supported by the installed CLI.

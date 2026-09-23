@@ -91,11 +91,12 @@ export NVM_DIR="$HOME/.nvm"
   | モデル | 利用可能な effort |
   | --- | --- |
   | `gpt-6-astra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
+  | `gpt-6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
   | `gpt-5.6-sol` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-terra` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` |
   | `gpt-5.6-luna` | `low`, `medium`, `high`, `xhigh`, `max` |
   | `gpt-5.5` | `low`, `medium`, `high`, `xhigh` |
-  | `gpt-5.3-codex-spark`（ChatGPT Pro向け研究プレビュー） | `low`, `medium`, `high`, `xhigh` |
 
 選択したモデルが対応している effort を指定してください。
 Codex Commit の最小 CLI version は 0.142.3 ですが、モデル側がそれより新しい CLI を要求する場合があります。その場合は Codex CLI を更新するか、利用中の CLI に対応するモデルを選択してください。

@@ -82,20 +82,22 @@
           "enum": [
             "",
             "gpt-6-astra",
+            "gpt-6-sol",
+            "gpt-6-luna",
             "gpt-5.6-sol",
             "gpt-5.6-terra",
             "gpt-5.6-luna",
-            "gpt-5.5",
-            "gpt-5.3-codex-spark"
+            "gpt-5.5"
           ],
           "enumDescriptions": [
             "Default (Codex CLI default; effort also uses codex CLI/model default)",
             "Most capable model for complex reasoning, coding, computer use, and research. Effort: low, medium, high, xhigh, max, ultra.",
+            "Built for complex coding and agentic workflows. Effort: low, medium, high, xhigh, max, ultra.",
+            "Efficient model for focused, repeatable work. Effort: low, medium, high, xhigh, max.",
             "Flagship GPT-5.6 model for complex coding, computer use, research, and cybersecurity. Effort: low, medium, high, xhigh, max, ultra.",
             "Balanced GPT-5.6 model for everyday work. Effort: low, medium, high, xhigh, max, ultra.",
             "Fast and affordable GPT-5.6 model for clear, repeatable work. Effort: low, medium, high, xhigh, max.",
-            "Previous-generation frontier model for complex coding, computer use, knowledge work, and research. Effort: low, medium, high, xhigh.",
-            "Text-only research preview for near-instant coding iteration. Available to ChatGPT Pro users. Effort: low, medium, high, xhigh."
+            "Previous-generation model; retires from Codex with ChatGPT sign-in on October 14, 2026. Effort: low, medium, high, xhigh."
           ],
           "description": "Model name passed to `codex exec --model`. Availability depends on your account, sign-in method, and Codex CLI version."
         },
@@ -119,8 +121,8 @@
             "Medium — balanced speed and reasoning depth (all listed models)",
             "High — greater reasoning depth (all listed models)",
             "Extra high — for difficult, multi-step work (all listed models)",
-            "Maximum reasoning depth (GPT-6 Astra and GPT-5.6 Sol, Terra, and Luna only)",
-            "Maximum reasoning with automatic task delegation (GPT-6 Astra and GPT-5.6 Sol and Terra only)"
+            "Maximum reasoning depth (GPT-6 Astra, Sol, and Luna; GPT-5.6 Sol, Terra, and Luna only)",
+            "Maximum reasoning with automatic task delegation (GPT-6 Astra and Sol; GPT-5.6 Sol and Terra only)"
           ],
           "description": "Reasoning effort passed via `codex exec -c model_reasoning_effort=...`. Empty keeps codex CLI default."
         },
